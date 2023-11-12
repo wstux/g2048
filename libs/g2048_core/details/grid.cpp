@@ -142,6 +142,7 @@ bool grid::move(const MoveType m)
         was_action = move_left();
         break;
     case MoveType::RIGHT:
+        was_action = move_right();
         break;
     case MoveType::UP:
         break;
@@ -219,6 +220,45 @@ bool grid::move_left()
             } else if (free_pos.is_valid_col()) {
                 move_to_end({row, col}, free_pos);
                 ++free_pos.col;
+                was_action = true;
+            }
+        }
+    }
+    return was_action;
+}
+
+bool grid::move_right()
+{
+    bool was_action = false;
+    for (size_t row = 0; row < m_rows_count; ++row) {
+        position_type free_pos = {row, position_type::invalid_value()};
+        for (size_t j = 0; j < m_cols_count; ++j) {
+            size_t col = m_cols_count - j - 1;
+            if (m_grid[row][col] == 0) {
+                free_pos.set_col_if_invalid(col);
+                continue;
+            }
+
+            position_type match_pos = {0, 0};
+            bool has_match = false;
+            for (size_t k = col - 1; k  != (size_t)-1; --k) {
+                if (m_grid[row][k] != 0) {
+                    if (m_grid[row][k] == m_grid[row][col]) {
+                        has_match = true;
+                        match_pos = {row, k};
+                    }
+                    break;
+                }
+            }
+
+            if (has_match) {
+                free_pos.set_col_if_invalid(col);
+                match({row, col}, match_pos, free_pos);
+                --free_pos.col;
+                was_action = true;
+            } else if (free_pos.is_valid_col()) {
+                move_to_end({row, col}, free_pos);
+                --free_pos.col;
                 was_action = true;
             }
         }
