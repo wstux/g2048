@@ -145,6 +145,7 @@ bool grid::move(const MoveType m)
         was_action = move_right();
         break;
     case MoveType::UP:
+        was_action = move_up();
         break;
     }
     return was_action;
@@ -270,6 +271,44 @@ void grid::move_to_end(const position_type& cur_pos, const position_type& free_p
 {
     set_value(free_pos, m_grid[cur_pos.row][cur_pos.col]);
     set_value(cur_pos, 0);
+}
+
+bool grid::move_up()
+{
+    bool was_action = false;
+    for (size_t col = 0; col < m_cols_count; ++col) {
+        position_type free_pos = {position_type::invalid_value(), col};
+        for (size_t row = 0; row < m_rows_count; ++row) {
+            if (m_grid[row][col] == 0) {
+                free_pos.set_row_if_invalid(row);
+                continue;
+            }
+
+            position_type match_pos = {0, 0};
+            bool has_match = false;
+            for (size_t k = row + 1; k < m_rows_count; ++k) {
+                if (m_grid[k][col] != 0) {
+                    if (m_grid[k][col] == m_grid[row][col]) {
+                        has_match = true;
+                        match_pos = {k, col};
+                    }
+                    break;
+                }
+            }
+
+            if (has_match) {
+                free_pos.set_row_if_invalid(row);
+                match({row, col}, match_pos, free_pos);
+                free_pos.row++;
+                was_action = true;
+            } else if (free_pos.is_valid_row()) {
+                move_to_end({row, col}, free_pos);
+                free_pos.row++;
+                was_action = true;
+            }
+        }
+    }
+    return was_action;
 }
 
 void grid::set_value(const size_t r, const size_t c, const value_type v)
