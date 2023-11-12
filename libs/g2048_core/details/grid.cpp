@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
+#include <limits>
 
 #include "g2048_core/grid.h"
 
@@ -54,6 +55,42 @@ T gen_random_value()
 }
 
 } // <anonymous> namespace
+
+///////////////////////////////////////////////////////////////////////////////
+/// struct grid::position
+
+struct grid::position
+{
+    using value_type = grid::value_type;
+
+    value_type row;
+    value_type col;
+
+    bool is_valid_col() const { return (col != std::numeric_limits<value_type>::max()); }
+    bool is_valid_row() const { return (row != std::numeric_limits<value_type>::max()); }
+
+    void set_col_if_invalid(const value_type c);
+    void set_row_if_invalid(const value_type r);
+
+    static value_type invalid_value() { return std::numeric_limits<value_type>::max(); }
+};
+
+void grid::position::set_col_if_invalid(const value_type c)
+{
+    if (! is_valid_col()) {
+        col = c;
+    }
+}
+
+void grid::position::set_row_if_invalid(const value_type r)
+{
+    if (! is_valid_row()) {
+        row = r;
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// class grid
 
 grid::grid(const uint8_t rows_count, const uint8_t cols_count)
     : m_rows_count(rows_count)

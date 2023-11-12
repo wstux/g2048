@@ -55,6 +55,9 @@ public:
     value_type value(const size_t r, const size_t c) const;
 
 private:
+    struct position;
+    using position_type = position;
+
     void init();
 
     void set_value(const size_t r, const size_t c, const value_type v);
