@@ -17,18 +17,68 @@
  */
 
 #include <cmath>
+#include <cstdlib>
+#include <ctime>
 
 #include "g2048_core/grid.h"
 
 namespace wstux {
 namespace g2048 {
+namespace {
+
+template<typename T>
+std::pair<T, T> gen_random_pos(const size_t row_count, const size_t col_count)
+{
+    static bool is_once = true;
+    if (is_once) {
+        is_once = false;
+        std::srand(std::time(nullptr));
+    }
+
+    std::pair<T, T> pos;
+    pos.first = std::rand() % row_count;
+    pos.second = std::rand() % col_count;
+    return pos;
+}
+
+template<typename T>
+T gen_random_value()
+{
+    static bool is_once = true;
+    if (is_once) {
+        is_once = false;
+        std::srand(std::time(nullptr));
+    }
+    const double r = static_cast<double>(std::rand()) / RAND_MAX + 0.5;
+    return static_cast<T>(r) + 1;
+}
+
+} // <anonymous> namespace
 
 grid::grid(const uint8_t rows_count, const uint8_t cols_count)
     : m_rows_count(rows_count)
     , m_cols_count(cols_count)
     , m_max_value(0)
     , m_grid(m_rows_count, row_type(m_cols_count, 0))
-{}
+{
+    init();
+}
+
+void grid::add_new_value()
+{
+    std::pair<size_t, size_t> pos = {0, 0};
+    do {
+        pos = gen_random_pos<size_t>(m_rows_count, m_cols_count);
+    } while (m_grid[pos.first][pos.second] != 0);
+    set_value(pos.first, pos.second, gen_random_value<value_type>());
+}
+
+void grid::init()
+{
+    for (size_t i = 0; i < 2; ++i) {
+        add_new_value();
+    }
+}
 
 grid::value_type grid::max_value() const
 {
@@ -39,6 +89,12 @@ bool grid::move(const MoveType /*m*/)
 {
     bool was_action = false;
     return was_action;
+}
+
+void grid::set_value(const size_t r, const size_t c, const value_type v)
+{
+    m_grid[r][c] = v;
+    m_max_value = std::max(m_max_value, v);
 }
 
 grid::value_type grid::value(const size_t r, const size_t c) const

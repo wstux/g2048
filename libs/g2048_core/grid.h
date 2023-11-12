@@ -36,11 +36,13 @@ enum class MoveType
 class grid final
 {
 public:
-    using value_type    = size_t;
-    using row_type      = std::vector<value_type>;
-    using grid_type     = std::vector<row_type>;
+    using value_type = size_t;
+    using row_type   = std::vector<value_type>;
+    using grid_type  = std::vector<row_type>;
 
     grid(const uint8_t rows_count, const uint8_t cols_count);
+
+    void add_new_value();
 
     size_t columns_count() const { return m_cols_count; }
 
@@ -51,6 +53,11 @@ public:
     size_t rows_count() const { return m_rows_count; }
 
     value_type value(const size_t r, const size_t c) const;
+
+private:
+    void init();
+
+    void set_value(const size_t r, const size_t c, const value_type v);
 
 private:
     const size_t m_rows_count;
