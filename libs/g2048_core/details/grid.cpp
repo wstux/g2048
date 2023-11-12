@@ -17,28 +17,360 @@
  */
 
 #include <cmath>
+#include <cstdlib>
+#include <ctime>
+#include <functional>
+#include <limits>
 
 #include "g2048_core/grid.h"
 
 namespace wstux {
 namespace g2048 {
+namespace {
+
+template<typename T>
+std::pair<T, T> gen_random_pos(const size_t row_count, const size_t col_count)
+{
+    static bool is_once = true;
+    if (is_once) {
+        is_once = false;
+        std::srand(std::time(nullptr));
+    }
+
+    std::pair<T, T> pos;
+    pos.first = std::rand() % row_count;
+    pos.second = std::rand() % col_count;
+    return pos;
+}
+
+template<typename T>
+T gen_random_value()
+{
+    static bool is_once = true;
+    if (is_once) {
+        is_once = false;
+        std::srand(std::time(nullptr));
+    }
+    const double r = static_cast<double>(std::rand()) / RAND_MAX + 0.5;
+    return static_cast<T>(r) + 1;
+}
+
+} // <anonymous> namespace
+
+///////////////////////////////////////////////////////////////////////////////
+/// struct grid::position
+
+struct grid::position
+{
+    using value_type = grid::value_type;
+
+    value_type row;
+    value_type col;
+
+    bool is_valid_col() const { return (col != std::numeric_limits<value_type>::max()); }
+    bool is_valid_row() const { return (row != std::numeric_limits<value_type>::max()); }
+
+    void set_col_if_invalid(const value_type c);
+    void set_row_if_invalid(const value_type r);
+
+    static value_type invalid_value() { return std::numeric_limits<value_type>::max(); }
+};
+
+void grid::position::set_col_if_invalid(const value_type c)
+{
+    if (! is_valid_col()) {
+        col = c;
+    }
+}
+
+void grid::position::set_row_if_invalid(const value_type r)
+{
+    if (! is_valid_row()) {
+        row = r;
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// class grid
 
 grid::grid(const uint8_t rows_count, const uint8_t cols_count)
     : m_rows_count(rows_count)
     , m_cols_count(cols_count)
     , m_max_value(0)
     , m_grid(m_rows_count, row_type(m_cols_count, 0))
-{}
+{
+    init();
+}
+
+void grid::add_new_value()
+{
+    std::pair<size_t, size_t> pos = {0, 0};
+    do {
+        pos = gen_random_pos<size_t>(m_rows_count, m_cols_count);
+    } while (m_grid[pos.first][pos.second] != 0);
+    set_value(pos.first, pos.second, gen_random_value<value_type>());
+}
+
+void grid::clear()
+{
+    m_max_value = 0;
+    m_grid.clear();
+    m_grid.resize(m_rows_count, row_type(m_cols_count, 0));
+
+    init();
+}
+
+void grid::init()
+{
+    for (size_t i = 0; i < 2; ++i) {
+        add_new_value();
+    }
+}
+
+bool grid::is_finished() const
+{
+    for (const row_type& row : m_grid) {
+        for (const value_type& value : row) {
+            if (value == 0) {
+                return false;
+            }
+        }
+    }
+
+    for (size_t r = 0; r < m_rows_count; ++r) {
+        for (size_t c = 0; c < m_cols_count; ++c) {
+            if ((r < (m_rows_count - 1)) && (m_grid[r][c] == m_grid[r + 1][c])) {
+                return false;
+            }
+            if ((c < (m_cols_count - 1)) && (m_grid[r][c] == m_grid[r][c + 1])) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+void grid::match(const position_type& cur_pos, const position_type& match_pos,
+                 const position_type& free_pos)
+{
+    const value_type val = m_grid[cur_pos.row][cur_pos.col] + 1;
+    set_value(cur_pos, 0);
+    set_value(match_pos, 0);
+    set_value(free_pos, val);
+}
 
 grid::value_type grid::max_value() const
 {
     return (value_type)std::pow(2, m_max_value);
 }
 
-bool grid::move(const MoveType /*m*/)
+bool grid::move(const MoveType m)
 {
     bool was_action = false;
+    switch (m) {
+    case MoveType::DOWN:
+        was_action = move_down();
+        break;
+    case MoveType::LEFT:
+        was_action = move_left();
+        break;
+    case MoveType::RIGHT:
+        was_action = move_right();
+        break;
+    case MoveType::UP:
+        was_action = move_up();
+        break;
+    }
     return was_action;
+}
+
+bool grid::move_down()
+{
+    bool was_action = false;
+    for (size_t col = 0; col < m_cols_count; ++col) {
+        position_type free_pos = {position_type::invalid_value(), col};
+        for (size_t j = 0; j < m_rows_count; ++j) {
+            const size_t row = m_rows_count - j - 1;
+            if (m_grid[row][col] == 0) {
+                free_pos.set_row_if_invalid(row);
+                continue;
+            }
+
+            position_type match_pos = {0, 0};
+            bool has_match = false;
+            for (size_t k = row - 1; k != (size_t)-1; --k) {
+                if (m_grid[k][col] != 0) {
+                    if (m_grid[k][col] == m_grid[row][col]) {
+                        has_match = true;
+                        match_pos = {k, col};
+                    }
+                    break;
+                }
+            }
+
+            if (has_match) {
+                free_pos.set_row_if_invalid(row);
+                match({row, col}, match_pos, free_pos);
+                --free_pos.row;
+                was_action = true;
+            } else if (free_pos.is_valid_row()) {
+                move_to_end({row, col}, free_pos);
+                --free_pos.row;
+                was_action = true;
+            }
+        }
+    }
+    return was_action;
+}
+
+bool grid::move_left()
+{
+    bool was_action = false;
+    for (size_t row = 0; row < m_rows_count; ++row) {
+        position_type free_pos = {row, position_type::invalid_value()};
+        for (size_t col = 0; col < m_cols_count; ++col) {
+            if (m_grid[row][col] == 0) {
+                free_pos.set_col_if_invalid(col);
+                continue;
+            }
+
+            position_type match_pos = {0, 0};
+            bool has_match = false;
+            for (size_t k = col + 1; k < m_cols_count; ++k) {
+                if (m_grid[row][k] != 0) {
+                    if (m_grid[row][k] == m_grid[row][col]) {
+                        has_match = true;
+                        match_pos = {row, k};
+                    }
+                    break;
+                }
+            }
+
+            if (has_match) {
+                free_pos.set_col_if_invalid(col);
+                match({row, col}, match_pos, free_pos);
+                ++free_pos.col;
+                was_action = true;
+            } else if (free_pos.is_valid_col()) {
+                move_to_end({row, col}, free_pos);
+                ++free_pos.col;
+                was_action = true;
+            }
+        }
+    }
+    return was_action;
+}
+
+bool grid::move_right()
+{
+    bool was_action = false;
+    for (size_t row = 0; row < m_rows_count; ++row) {
+        position_type free_pos = {row, position_type::invalid_value()};
+        for (size_t j = 0; j < m_cols_count; ++j) {
+            size_t col = m_cols_count - j - 1;
+            if (m_grid[row][col] == 0) {
+                free_pos.set_col_if_invalid(col);
+                continue;
+            }
+
+            position_type match_pos = {0, 0};
+            bool has_match = false;
+            for (size_t k = col - 1; k  != (size_t)-1; --k) {
+                if (m_grid[row][k] != 0) {
+                    if (m_grid[row][k] == m_grid[row][col]) {
+                        has_match = true;
+                        match_pos = {row, k};
+                    }
+                    break;
+                }
+            }
+
+            if (has_match) {
+                free_pos.set_col_if_invalid(col);
+                match({row, col}, match_pos, free_pos);
+                --free_pos.col;
+                was_action = true;
+            } else if (free_pos.is_valid_col()) {
+                move_to_end({row, col}, free_pos);
+                --free_pos.col;
+                was_action = true;
+            }
+        }
+    }
+    return was_action;
+}
+
+void grid::move_to_end(const position_type& cur_pos, const position_type& free_pos)
+{
+    set_value(free_pos, m_grid[cur_pos.row][cur_pos.col]);
+    set_value(cur_pos, 0);
+}
+
+bool grid::move_up()
+{
+    bool was_action = false;
+    for (size_t col = 0; col < m_cols_count; ++col) {
+        position_type free_pos = {position_type::invalid_value(), col};
+        for (size_t row = 0; row < m_rows_count; ++row) {
+            if (m_grid[row][col] == 0) {
+                free_pos.set_row_if_invalid(row);
+                continue;
+            }
+
+            position_type match_pos = {0, 0};
+            bool has_match = false;
+            for (size_t k = row + 1; k < m_rows_count; ++k) {
+                if (m_grid[k][col] != 0) {
+                    if (m_grid[k][col] == m_grid[row][col]) {
+                        has_match = true;
+                        match_pos = {k, col};
+                    }
+                    break;
+                }
+            }
+
+            if (has_match) {
+                free_pos.set_row_if_invalid(row);
+                match({row, col}, match_pos, free_pos);
+                free_pos.row++;
+                was_action = true;
+            } else if (free_pos.is_valid_row()) {
+                move_to_end({row, col}, free_pos);
+                free_pos.row++;
+                was_action = true;
+            }
+        }
+    }
+    return was_action;
+}
+
+void grid::set_value(const size_t r, const size_t c, const value_type v)
+{
+    m_grid[r][c] = v;
+    m_max_value = std::max(m_max_value, v);
+}
+
+size_t grid::score() const
+{
+    const std::function<size_t(value_type)> calc_score_fn = [](value_type v) -> size_t {
+        if (v < 2) {
+            return 0;
+        }
+        return ((size_t)std::pow(2, v) * (v - 1));
+    };
+
+    size_t score = 0;
+    for (const row_type& row : m_grid) {
+        for (const value_type value : row) {
+            score += calc_score_fn(value);
+        }
+    }
+    return score;
+}
+
+void grid::set_value(const position_type& p, const value_type v)
+{
+    set_value(p.row, p.col, v);
 }
 
 grid::value_type grid::value(const size_t r, const size_t c) const

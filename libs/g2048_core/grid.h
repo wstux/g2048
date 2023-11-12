@@ -36,13 +36,19 @@ enum class MoveType
 class grid final
 {
 public:
-    using value_type    = size_t;
-    using row_type      = std::vector<value_type>;
-    using grid_type     = std::vector<row_type>;
+    using value_type = size_t;
+    using row_type   = std::vector<value_type>;
+    using grid_type  = std::vector<row_type>;
 
     grid(const uint8_t rows_count, const uint8_t cols_count);
 
+    void add_new_value();
+
+    void clear();
+
     size_t columns_count() const { return m_cols_count; }
+
+    bool is_finished() const;
 
     value_type max_value() const;
 
@@ -50,7 +56,32 @@ public:
 
     size_t rows_count() const { return m_rows_count; }
 
+    size_t score() const;
+
     value_type value(const size_t r, const size_t c) const;
+
+private:
+    struct position;
+    using position_type = position;
+
+    void init();
+
+    void match(const position_type& cur_pos, const position_type& match_pos,
+               const position_type& free_pos);
+
+    bool move_down();
+
+    bool move_left();
+
+    bool move_right();
+
+    void move_to_end(const position_type& cur_pos, const position_type& free_pos);
+
+    bool move_up();
+
+    void set_value(const size_t r, const size_t c, const value_type v);
+
+    void set_value(const position_type& p, const value_type v);
 
 private:
     const size_t m_rows_count;
