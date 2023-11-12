@@ -65,6 +65,8 @@ private:
 
     bool move_down();
 
+    bool move_left();
+
     void move_to_end(const position_type& cur_pos, const position_type& free_pos);
 
     void set_value(const size_t r, const size_t c, const value_type v);
