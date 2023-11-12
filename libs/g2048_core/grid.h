@@ -44,13 +44,19 @@ public:
 
     void add_new_value();
 
+    void clear();
+
     size_t columns_count() const { return m_cols_count; }
+
+    bool is_finished() const;
 
     value_type max_value() const;
 
     bool move(const MoveType m);
 
     size_t rows_count() const { return m_rows_count; }
+
+    size_t score() const;
 
     value_type value(const size_t r, const size_t c) const;
 

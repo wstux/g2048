@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
+#include <functional>
 #include <limits>
 
 #include "g2048_core/grid.h"
@@ -110,11 +111,43 @@ void grid::add_new_value()
     set_value(pos.first, pos.second, gen_random_value<value_type>());
 }
 
+void grid::clear()
+{
+    m_max_value = 0;
+    m_grid.clear();
+    m_grid.resize(m_rows_count, row_type(m_cols_count, 0));
+
+    init();
+}
+
 void grid::init()
 {
     for (size_t i = 0; i < 2; ++i) {
         add_new_value();
     }
+}
+
+bool grid::is_finished() const
+{
+    for (const row_type& row : m_grid) {
+        for (const value_type& value : row) {
+            if (value == 0) {
+                return false;
+            }
+        }
+    }
+
+    for (size_t r = 0; r < m_rows_count; ++r) {
+        for (size_t c = 0; c < m_cols_count; ++c) {
+            if ((r < (m_rows_count - 1)) && (m_grid[r][c] == m_grid[r + 1][c])) {
+                return false;
+            }
+            if ((c < (m_cols_count - 1)) && (m_grid[r][c] == m_grid[r][c + 1])) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 void grid::match(const position_type& cur_pos, const position_type& match_pos,
@@ -315,6 +348,24 @@ void grid::set_value(const size_t r, const size_t c, const value_type v)
 {
     m_grid[r][c] = v;
     m_max_value = std::max(m_max_value, v);
+}
+
+size_t grid::score() const
+{
+    const std::function<size_t(value_type)> calc_score_fn = [](value_type v) -> size_t {
+        if (v < 2) {
+            return 0;
+        }
+        return ((size_t)std::pow(2, v) * (v - 1));
+    };
+
+    size_t score = 0;
+    for (const row_type& row : m_grid) {
+        for (const value_type value : row) {
+            score += calc_score_fn(value);
+        }
+    }
+    return score;
 }
 
 void grid::set_value(const position_type& p, const value_type v)
