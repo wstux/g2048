@@ -117,21 +117,91 @@ void grid::init()
     }
 }
 
+void grid::match(const position_type& cur_pos, const position_type& match_pos,
+                 const position_type& free_pos)
+{
+    const value_type val = m_grid[cur_pos.row][cur_pos.col] + 1;
+    set_value(cur_pos, 0);
+    set_value(match_pos, 0);
+    set_value(free_pos, val);
+}
+
 grid::value_type grid::max_value() const
 {
     return (value_type)std::pow(2, m_max_value);
 }
 
-bool grid::move(const MoveType /*m*/)
+bool grid::move(const MoveType m)
 {
     bool was_action = false;
+    switch (m) {
+    case MoveType::DOWN:
+        was_action = move_down();
+        break;
+    case MoveType::LEFT:
+        break;
+    case MoveType::RIGHT:
+        break;
+    case MoveType::UP:
+        break;
+    }
     return was_action;
+}
+
+bool grid::move_down()
+{
+    bool was_action = false;
+    for (size_t col = 0; col < m_cols_count; ++col) {
+        position_type free_pos = {position_type::invalid_value(), col};
+        for (size_t j = 0; j < m_rows_count; ++j) {
+            const size_t row = m_rows_count - j - 1;
+            if (m_grid[row][col] == 0) {
+                free_pos.set_row_if_invalid(row);
+                continue;
+            }
+
+            position_type match_pos = {0, 0};
+            bool has_match = false;
+            for (size_t k = row - 1; k != (size_t)-1; --k) {
+                if (m_grid[k][col] != 0) {
+                    if (m_grid[k][col] == m_grid[row][col]) {
+                        has_match = true;
+                        match_pos = {k, col};
+                    }
+                    break;
+                }
+            }
+
+            if (has_match) {
+                free_pos.set_row_if_invalid(row);
+                match({row, col}, match_pos, free_pos);
+                --free_pos.row;
+                was_action = true;
+            } else if (free_pos.is_valid_row()) {
+                move_to_end({row, col}, free_pos);
+                --free_pos.row;
+                was_action = true;
+            }
+        }
+    }
+    return was_action;
+}
+
+void grid::move_to_end(const position_type& cur_pos, const position_type& free_pos)
+{
+    set_value(free_pos, m_grid[cur_pos.row][cur_pos.col]);
+    set_value(cur_pos, 0);
 }
 
 void grid::set_value(const size_t r, const size_t c, const value_type v)
 {
     m_grid[r][c] = v;
     m_max_value = std::max(m_max_value, v);
+}
+
+void grid::set_value(const position_type& p, const value_type v)
+{
+    set_value(p.row, p.col, v);
 }
 
 grid::value_type grid::value(const size_t r, const size_t c) const

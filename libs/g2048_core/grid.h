@@ -60,7 +60,15 @@ private:
 
     void init();
 
+    void match(const position_type& cur_pos, const position_type& match_pos,
+               const position_type& free_pos);
+
+    bool move_down();
+
+    void move_to_end(const position_type& cur_pos, const position_type& free_pos);
+
     void set_value(const size_t r, const size_t c, const value_type v);
+    void set_value(const position_type& p, const value_type v);
 
 private:
     const size_t m_rows_count;
